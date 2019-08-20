@@ -225,7 +225,7 @@ for key,num in yavl.iteritems():
   # 
   # считаем повторяемость каждого явления
   # 
-  print num
+  # print num
   # print Counter(num).items()
   axs[row][i].hist( num )
   axs[row][i].set_title(key)

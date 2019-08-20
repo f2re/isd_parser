@@ -20,24 +20,29 @@ class Stantion(object):
     # размер матрицы, на которую будем проецировать 
     self.matrix_size = 60
 
-    self.date      = datetime.now()
-    self.name      = 'Null'
-    self.hour      = 0
-    self.minute    = 0
-    self.P         = ''
-    self.H         = ''
-    self.N         = '' # количество облачности
-    self.C         = '' # форма облачности
-    self.T         = ''
-    self.Td        = ''
-    self.VV        = 10
-    self.RR        = ''  # влажность
-    self.WW        = ''
-    self.dd        = ''
-    self.ff        = ''
-    self.stantion  = '000000'
-    self.country   = 'ru'
-    self.NN        = 0 #количество облачности по которым считаем сму
+    self.date     = datetime.now()
+    self.name     = 'Null'
+    self.hour     = 0
+    self.minute   = 0
+    self.P        = ''
+    self.H        = ''
+    self.H_arr    = []
+    self.N        = '' # количество облачности
+    self.N_arr    = [] # количество облачности
+    self.C        = '' # форма облачности
+    self.C_arr    = [] # форма облачности
+    self.T        = ''
+    self.Td       = ''
+    self.VV       = 10
+    self.RR       = ''  # влажность
+    self.WW       = ''
+    self.dd       = ''
+    self.ff       = ''
+    self.stantion = '000000'
+    self.lat      = ''
+    self.lon      = ''
+    self.country  = 'ru'
+    self.NN       = 0 #количество облачности по которым считаем сму
 
     # маштабные коэффициенты
     self.dopusk    = {
@@ -63,7 +68,22 @@ class Stantion(object):
     return self.get_name() < item.get_name()
 
   def __str__(self):
-    return '{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10}'.encode('utf-8').format(self.stantion.encode('utf-8'),self.name.encode('utf-8'),self.get_hm(),self.date,self.N,self.H,self.WW,self.VV,self.dd,self.ff,self.T).decode('utf-8')
+    return '{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13}'.encode('utf-8').format(
+        self.stantion.encode('utf-8'),
+        self.name.encode('utf-8'),
+        self.get_lat(),
+        self.get_lon(),
+        self.get_hm(),
+        self.date,
+        self.get_N(),
+        self.get_C(),
+        self.get_H(),
+        self.WW,
+        self.VV,
+        self.dd,
+        self.ff,
+        self.T
+        ).decode('utf-8')
 
 
   # 
@@ -186,6 +206,8 @@ class Stantion(object):
       'country':     self.get_country(),
       'visible':     self.get_visible(),
       'pos':         self.get_pos(),
+      'lat':         self.get_lat(),
+      'lon':         self.get_lon(),
       'ump_height':  self.get_ump_height(),
       'ump_visible': self.get_ump_visible(),
      }
@@ -328,17 +350,45 @@ class Stantion(object):
   def set_H(self,val):
     if val=='' or val==False:
       return self
-    self.H = '' if val==0 or val=='0' else val
+    self.H_arr = [ ('' if val==0 or val=='0' else val) ]
+    return self
+
+    # устанавливаем ВНГО
+  def add_H(self,val):
+    if val=='' or val==False:
+      return self
+    if ( self.H_arr == [] ):
+      self.set_H(val)
+    else:
+      self.H_arr.append( int(str(val).title()) )
+    self.H_arr.sort(reverse=True)
     return self
 
   # устанавливаем количество облачности
   def set_N(self,val):
     if val != '' and val!=0 and int(val)!=0:
       self.set_NN( val )
-      self.N = int(val)
+      self.N_arr = [(int(val))]
     else:
-      self.N=''
+      self.N_arr = []
     return self
+
+  # добавляем количество облачности
+  # если больше одного значения, то кидаем сверху
+  def add_N(self,val):
+    if val==0 or val=='' or int(val)==0:
+      return self
+    if ( self.get_N() == ""  ):
+      self.set_NN(val)
+      self.set_N(val)
+    else:
+      if ( self.get_N() ):
+        self.set_NN(self.get_N())
+      self.N_arr.append((int(val)))
+      
+    self.N_arr.sort(reverse=True)
+    return self
+
 
     # устанавливаем количество облачности
   def set_NN(self,val):
@@ -355,17 +405,18 @@ class Stantion(object):
   def set_C(self,val):
     if val=='' or val==False or val=='Облаков нет':
       return self
-    self.C = str(self.check(val)).title()
+    self.C_arr = [str(self.check(val)).title()]
     return self
 
   # устанавливаем название
   def add_C(self,val):
     if val=='' or val==False or val=='Облаков нет':
       return self
-    if ( self.C == '' ):
+    if ( self.C_arr == [] ):
       self.set_C(val)
     else:
-      self.C = str(self.get_C() ) +'/'+str(val).title()
+      self.C_arr.append(str(val).title())
+    self.C_arr.sort(reverse=True)
     return self
 
   # получаем позицию
@@ -373,24 +424,26 @@ class Stantion(object):
     self.pos = int(val)
     return self
 
-  # добавляем количество облачности
-  # если больше одного значения, то кидаем сверху
-  def add_N(self,val):
 
-    if val==0 or val=='' or int(val)==0:
-      return self
-    if ( self.get_N() == ''  ):
-      self.set_NN(val)
-      self.set_N(val)
-    else:
-      if ( self.get_N() ):
-        self.set_NN(self.get_N())
-      self.N = str(self.get_N() ) +'/'+str(int(val))
+
+  def set_lat(self,val):
+    self.lat = val
+    return self
+
+  def set_lon(self,val):
+    self.lon = val
     return self
 
   """GET
   -----------------------------------
   """
+
+
+  def get_lat(self):
+    return self.lat
+
+  def get_lon(self):
+    return self.lon
 
   # получаем дату
   def get_date(self):
@@ -475,11 +528,11 @@ class Stantion(object):
 
   # устанавливаем ВНГО
   def get_H(self):
-    return self.H
+    return '/'.join(str(x) for x in self.H_arr)
 
   # устанавливаем ВНГО
   def get_N(self):
-    return self.N
+    return '/'.join(str(x) for x in self.N_arr)
 
   # возвращаем ВНГО для СМУ (одно число)
   def get_NN(self):
@@ -487,4 +540,4 @@ class Stantion(object):
 
   # устанавливаем ВНГО
   def get_C(self):
-    return self.C
+    return '/'.join(str(x) for x in self.C_arr)
