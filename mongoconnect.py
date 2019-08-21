@@ -54,12 +54,14 @@ def write_mongo(  db='srcdata', colletion="meteoreport", ip='10.10.10.7', port=2
     
     # производим поиск
     ids=[]
-    try:
-        res = collect.insert_many(data)
-        ids = res.inserted_ids
-    finally:
-        # закрываем соединение
-        client.close()
+    if ( len(data)>0 ):
+        try:
+            res = collect.insert_many(data)
+            ids = res.inserted_ids
+        finally:
+            pass
+            # закрываем соединение
+            # client.close()
 
     return ids
 

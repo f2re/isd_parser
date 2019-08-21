@@ -17,8 +17,6 @@ class IListWeather(IList):
     self._list  = wlist  
     return
 
-
-
   # получаем список видимых погодных станций
   def get_visible(self,indx):
     visible = IListWeather([])

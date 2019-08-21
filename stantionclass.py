@@ -41,7 +41,7 @@ class Stantion(object):
     self.stantion = '000000'
     self.lat      = ''
     self.lon      = ''
-    self.country  = 'ru'
+    self.country  = ''
     self.NN       = 0 #количество облачности по которым считаем сму
 
     # маштабные коэффициенты
@@ -68,9 +68,10 @@ class Stantion(object):
     return self.get_name() < item.get_name()
 
   def __str__(self):
-    return '{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13}'.encode('utf-8').format(
+    return '{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14}'.encode('utf-8').format(
         self.stantion.encode('utf-8'),
         self.name.encode('utf-8'),
+        self.get_country(),
         self.get_lat(),
         self.get_lon(),
         self.get_hm(),
@@ -85,6 +86,11 @@ class Stantion(object):
         self.T
         ).decode('utf-8')
 
+  def safe_cast(self, val, to_type, default=None):
+    try:
+        return to_type(val)
+    except (ValueError, TypeError):
+        return default
 
   # 
   # Конвертируем данные из базы в класс
@@ -164,7 +170,7 @@ class Stantion(object):
     sc = (self.dopusk[type][1] - self.dopusk[type][0])/self.matrix_size
 
     # получаем значение от 0 до matrix_size
-    val = int(self[type]/sc)
+    val = self.safe_cast(self[type]/sc, int)
 
     return val
 
@@ -217,6 +223,39 @@ class Stantion(object):
 
 
   # 
+  # превращаем все в словарь
+  # 
+  def to_mongo(self):
+    diction = { 
+      'date':        self.get_date(),
+      'hour':        self.get_hour(),
+      'minute':      self.get_minute(),
+      'station':     {
+        'name':        self.get_name(),  
+        'stantion':    self.get_stantion(),
+        'country':     self.get_country(),
+        'location':{
+          'lat':         self.get_lat(),
+          'lon':         self.get_lon(),
+        }
+      },
+      'P':           self.get_P(),
+      'H':           self.H_arr,
+      'N':           self.N_arr,
+      'C':           self.C_arr,
+      'T':           self.get_T(),
+      'Td':          self.get_Td(),
+      'VV':          self.get_VV(),
+      'RR':          self.get_RR(),
+      'WW':          self.get_WW(),
+      'dd':          self.get_dd(),
+      'ff':          self.get_ff(),
+     }
+    # for i in self.__dict__:
+    #   diction.update( { i : getattr( self, i ) } )
+    return diction
+
+  # 
   # проверяем значение, если не ок то пусто возвращаем
   # 
   def check(self,val):
@@ -233,10 +272,10 @@ class Stantion(object):
   # 
   def checkNum(self,val):
     ret = ''
-    if val=='' or val==False or val==-9999 or int(val)==0:
+    if val=='' or val==False or val==-9999 or self.safe_cast(val,int)==0:
       ret=''
     else:
-      ret = int(val)
+      ret = self.safe_cast(val,int)
     return ret
 
   # устанавливаем влажность
@@ -322,9 +361,9 @@ class Stantion(object):
         val= float(val)
 
     if val==9999:
-      val=10
-    if val>50:
-      val = val//1000
+      val=10000
+    # if val>50:
+    #   val = val//1000
     self.VV = val
     return self
 
@@ -338,12 +377,12 @@ class Stantion(object):
 
   # устанавливаем температуру
   def set_T(self,val):
-    self.T = self.check(val)
+    self.T = self.safe_cast(self.check(val),float)
     return self
 
   # устанавливаем температуру
   def set_Td(self,val):
-    self.Td = self.check(val)
+    self.Td = self.safe_cast(self.check(val),float)
     return self
 
   # устанавливаем ВНГО
@@ -360,15 +399,15 @@ class Stantion(object):
     if ( self.H_arr == [] ):
       self.set_H(val)
     else:
-      self.H_arr.append( int(str(val).title()) )
+      self.H_arr.append( self.safe_cast(str(val).title(),int) )
     self.H_arr.sort(reverse=True)
     return self
 
   # устанавливаем количество облачности
   def set_N(self,val):
-    if val != '' and val!=0 and int(val)!=0:
+    if val != '' and val!=0 and self.safe_cast(val,int)!=0:
       self.set_NN( val )
-      self.N_arr = [(int(val))]
+      self.N_arr = [self.safe_cast(val,int)]
     else:
       self.N_arr = []
     return self
@@ -376,7 +415,7 @@ class Stantion(object):
   # добавляем количество облачности
   # если больше одного значения, то кидаем сверху
   def add_N(self,val):
-    if val==0 or val=='' or int(val)==0:
+    if val==0 or val=='' or self.safe_cast(val,int)==0:
       return self
     if ( self.get_N() == ""  ):
       self.set_NN(val)
@@ -384,7 +423,7 @@ class Stantion(object):
     else:
       if ( self.get_N() ):
         self.set_NN(self.get_N())
-      self.N_arr.append((int(val)))
+      self.N_arr.append((self.safe_cast(val,int)))
       
     self.N_arr.sort(reverse=True)
     return self
@@ -394,9 +433,9 @@ class Stantion(object):
   def set_NN(self,val):
     if val != '' and val!=0:
       if len(str(val).split('/'))>0:
-        self.NN=int(float(str(val).split('/')[0]))
+        self.NN=self.safe_cast((str(val).split('/')[0]),int)
       else:
-        self.NN = int(val)
+        self.NN = self.safe_cast(val,int)
     else:
       self.NN=''
     return self
@@ -421,7 +460,7 @@ class Stantion(object):
 
   # получаем позицию
   def set_pos(self,val):
-    self.pos = int(val)
+    self.pos = self.safe_cast(val,int)
     return self
 
 

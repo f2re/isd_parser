@@ -77,6 +77,12 @@ class ISD(object):
 
     return
 
+  def safe_cast(self, val, to_type, default=None):
+    try:
+        return to_type(val)
+    except (ValueError, TypeError):
+        return default
+
   # 
   # задаем заголовок из массива
   # 
@@ -295,7 +301,7 @@ class ISD(object):
   # 
   def f_STATION(self,val):
     result=val
-    self.weather_.set_stantion(result)
+    self.weather_.set_stantion( result[:6] )
     return result
 
   # 
@@ -313,7 +319,7 @@ class ISD(object):
   # 
   def f_LATITUDE(self,val):
     result=val
-    self.weather_.set_lat( float(result) )
+    self.weather_.set_lat( self.safe_cast(result,float) )
     return result
 
   # 
@@ -321,7 +327,7 @@ class ISD(object):
   # 
   def f_LONGITUDE(self,val):
     result=val
-    self.weather_.set_lon( float(result) )
+    self.weather_.set_lon( self.safe_cast(result,float) )
     return result
 
   # 
@@ -335,8 +341,9 @@ class ISD(object):
   # f_NAME
   # 
   def f_NAME(self,val):
-    result=val
-    self.weather_.set_name(result)
+    result=val.split(',')
+    self.weather_.set_name(result[0])
+    self.weather_.set_country(val[-2:])
     return result
 
   # 
@@ -351,7 +358,7 @@ class ISD(object):
   # 
   def f_WND(self,val):
     result=val.split(',')
-    if len(result) > 1 and int(result[0])!=999:
+    if len(result) > 1 and self.safe_cast((result[0]),int)!=999:
       self.weather_.set_dd( result[0] )
       self.weather_.set_ff( result[1] )
     return result
@@ -368,8 +375,8 @@ class ISD(object):
   # 
   def f_VIS(self,val):
     result=val.split(',')
-    if len(result) > 1 and int(result[0])!=999999:
-      self.weather_.set_VV( int(result[0]) )
+    if len(result) > 1 and self.safe_cast((result[0]),int)!=999999:
+      self.weather_.set_VV( self.safe_cast((result[0]),int) )
     return result
 
   # 
@@ -377,8 +384,8 @@ class ISD(object):
   # 
   def f_TMP(self,val):
     result=val.split(',')
-    if len(result) > 1:
-      self.weather_.set_T( float(result[0])*0.1 )
+    if len(result) > 1 and self.safe_cast((result[0]),int)!=9999:
+      self.weather_.set_T( self.safe_cast((result[0]),float)*0.1 )
     return result
 
   # 
@@ -386,8 +393,8 @@ class ISD(object):
   # 
   def f_DEW(self,val):
     result=val.split(',')
-    if len(result) > 1 and int(result[0])<999:
-      self.weather_.set_Td( float(result[0])*0.1 )
+    if len(result) > 1 and self.safe_cast((result[0]),int)<999:
+      self.weather_.set_Td( self.safe_cast((result[0]),float)*0.1 )
     return result
 
   # 
@@ -498,8 +505,8 @@ class ISD(object):
       if CType is not None:
         self.weather_.add_C( CType )
       # высота облачности
-      if int(result[2])!=99999:
-        self.weather_.add_H( int(result[2]) )
+      if self.safe_cast((result[2]),int)!=99999:
+        self.weather_.add_H( self.safe_cast((result[2]),int) )
     return result
 
   # 
@@ -554,8 +561,8 @@ class ISD(object):
   # 
   def f_MA1(self,val):
     result=val.split(',')
-    if len(result) > 1:
-      self.weather_.set_P( float(result[0])*0.1 )
+    if len(result) > 1 and self.safe_cast((result[0]),int)!=99999:
+      self.weather_.set_P( self.safe_cast((result[0]),float)*0.1 )
     return result
 
   # 
