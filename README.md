@@ -1,5 +1,5 @@
 # isd_parser
-ISD parse python script
+ISD parse python script NOAA weather database to MongoDB
 
 Скрипт для парсинга данных со станций NOAA ftp://ftp.ncdc.noaa.gov/pub/data/noaa/
 
