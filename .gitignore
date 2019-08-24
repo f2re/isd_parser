@@ -1,2 +1,4 @@
 srcdata/
 *.pyc
+yavl_*
+lastfile.txt
