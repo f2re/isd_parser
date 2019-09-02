@@ -2,3 +2,5 @@ srcdata/
 *.pyc
 yavl_*
 lastfile.txt
+*.json
+*.h5
