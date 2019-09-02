@@ -17,6 +17,11 @@ from datetime import datetime, timedelta
 class Stantion(object):
 
   def __init__(self):
+
+    # возвращаем только дробные значения
+    # надо для обучения нейросети
+    self.only_float = False
+
     # размер матрицы, на которую будем проецировать 
     self.matrix_size = 60
 
@@ -33,7 +38,7 @@ class Stantion(object):
     self.C_arr    = [] # форма облачности
     self.T        = ''
     self.Td       = ''
-    self.VV       = 10
+    self.VV       = 10000
     self.RR       = ''  # влажность
     self.WW       = ''
     self.dd       = ''
@@ -60,8 +65,47 @@ class Stantion(object):
       "dd"     : [ 0, 360 ],
       "ff"     : [ 0, 25 ]
     }
+
+    self.wwtofloat = {
+        'drizzle':       1.2,
+        'dust':          1.3,
+        'duststorm':     1.0,
+        'fog':           1.1,
+        'hail':          1.5,
+        'haze':          0.2,
+        'ice':           1.4,
+        'lightning':     0.5,
+        'mist':          0.4,
+        'n/a':           0.0,
+        'precipitation': 0.6,
+        'rain':          1.6,
+        'smoke':         0.1,
+        'snow':          1.7,
+        'squalls':       0.7,
+        'thunderstorm':  0.9,
+        'thunderstorm':  1.8,
+        'tornado':       0.8,
+        'widespread':    0.3,
+    }
     return
 
+
+  # 
+  # конвертируем погоду в цифери
+  # 
+  def ww_to_float(self,val):
+    num = 0.0
+    val = val.lower()
+    if val in self.wwtofloat:
+      num = self.wwtofloat[val]
+    return num
+
+  # 
+  # конвертируем погоду в цифери
+  # 
+  def float_to_ww(self,val):
+    num=0.0
+    return num
 
   # сортировка по умолчанию - по алфавиту
   def __lt__(self,item):
@@ -137,6 +181,32 @@ class Stantion(object):
     self.set_dd(         self.searchParam( dbdata, 'dd' ) )
     self.set_ff(         self.searchParam( dbdata, 'ff' ) )
     self.set_stantion(   dbdata['station']  )
+    return self
+
+  # 
+  # получаем данные из базы монго
+  # 
+  def fromMongoISDFormat(self, dbdata):
+    self.set_date(       dbdata['date']  )
+    if 'station' in dbdata and 'name' in dbdata['station']:
+      self.set_name(       dbdata['station']['name']  )
+    self.set_hour(       dbdata['date'].hour  )
+    self.set_minute(     dbdata['date'].minute  )
+    self.set_P(          dbdata['P']  )
+    self.set_H(          dbdata['H']  )
+    self.set_N(          dbdata['N']  )
+    self.set_C(          dbdata['C']  )
+    self.set_T(          dbdata['T']  )
+    self.set_Td(         dbdata['Td'] )
+    self.set_VV(         dbdata['VV'] )
+    self.set_RR(         dbdata['RR'] )
+    self.set_WW(         dbdata['WW'] )
+    self.set_dd(         dbdata['dd'] )
+    self.set_ff(         dbdata['ff'] )
+    self.set_stantion(   dbdata['station']['stantion']  )
+    self.set_country(   dbdata['station']['country']  )
+    self.set_lat(   dbdata['station']['location']['coordinates'][0]  )
+    self.set_lon(   dbdata['station']['location']['coordinates'][1]  )
     return self
 
   # 
@@ -235,8 +305,8 @@ class Stantion(object):
         'stantion':    self.get_stantion(),
         'country':     self.get_country(),
         'location':{
-          'lat':         self.get_lat(),
-          'lon':         self.get_lon(),
+          'type':'Point',
+          'coordinates':[self.get_lat(),self.get_lon()]
         }
       },
       'P':           self.get_P(),
@@ -266,13 +336,26 @@ class Stantion(object):
       ret = str(val)
     return ret
 
+  # 
+  # Включаем режим только числа
+  # 
+  def onlyFloatOn(self):
+    self.only_float=True
+    return self
+
+  # 
+  # # Выключаем режим только числа
+  # 
+  def onlyFloatOff(self):
+    self.only_float=False
+    return self
 
   # 
   # проверяем номерные значения
   # 
   def checkNum(self,val):
     ret = ''
-    if val=='' or val==False or val==-9999 or self.safe_cast(val,int)==0:
+    if val=='' or val is False or val==-9999 or self.safe_cast(val,int)==0:
       ret=''
     else:
       ret = self.safe_cast(val,int)
@@ -345,7 +428,8 @@ class Stantion(object):
 
   # устанавливаем минуты
   def set_minute(self,val):
-    self.minute = val if val>9 else '0'+str(val)
+    self.minute = self.safe_cast(val,int)
+    # self.minute = val if val>9 else '0'+str(val)
     return self
 
   # устанавливаем видимость
@@ -479,9 +563,15 @@ class Stantion(object):
 
 
   def get_lat(self):
+    if self.only_float:
+      ret = self.safe_cast(self.lat,float,0.0)
+      return ret
     return self.lat
 
   def get_lon(self):
+    if self.only_float:
+      ret = self.safe_cast(self.lon,float,0.0)
+      return ret
     return self.lon
 
   # получаем дату
@@ -490,10 +580,16 @@ class Stantion(object):
 
   # получаем настройки минимума для ВНГО
   def get_ump_height(self):
+    if self.only_float:
+      ret = self.safe_cast(self.ump_height,float,0.0)
+      return ret
     return self.ump_height
 
   # получаем настройки минимума для видимости
   def get_ump_visible(self):
+    if self.only_float:
+      ret = self.safe_cast(self.ump_visible,float,0.0)
+      return ret
     return self.ump_visible
 
   # получаем время (срок)
@@ -511,6 +607,9 @@ class Stantion(object):
 
   # получаем видимость
   def get_visible(self):
+    if self.only_float:
+      ret = self.safe_cast(self.visible,float,0.0)
+      return ret
     return self.visible
 
   # получаем позицию
@@ -523,26 +622,47 @@ class Stantion(object):
 
   # получаем данные по параметру
   def get_T(self):
+    if self.only_float:
+      ret = self.safe_cast(self.T,float,0.0)
+      return ret
     return self.T
 
   # получаем данные по параметру
   def get_Td(self):
+    if self.only_float:
+      ret = self.safe_cast(self.Td,float,0.0)
+      return ret
     return self.Td
 
   # устанавливаем влажность
   def get_RR(self):
+    if self.only_float:
+      ret = self.safe_cast(self.RR,float,0.0)
+      return ret
     return self.RR 
 
   # устанавливаем явления
   def get_WW(self):
+    if self.only_float:
+      if self.WW!="" and self.WW is not None:
+        ret = self.ww_to_float(self.WW)
+      else:
+        ret = 0.0
+      return ret
     return self.WW 
 
   # устанавливаем направление ветра
   def get_dd(self):
+    if self.only_float:
+      ret = self.safe_cast(self.dd,float,0.0)
+      return ret
     return self.dd 
 
   # устанавливаем скорость ветра
   def get_ff(self):
+    if self.only_float:
+      ret = self.safe_cast(self.ff,float,0.0)
+      return ret
     return self.ff 
 
   # устанавливаем номер станции
@@ -551,26 +671,48 @@ class Stantion(object):
 
   # устанавливаем часы
   def get_hour(self):
+    if self.only_float:
+      ret = self.safe_cast(self.hour,float,0.0)
+      return ret
     return self.hour 
 
   # устанавливаем минуты
   def get_minute(self):
+    if self.only_float:
+      ret = self.safe_cast(self.minute,float,0.0)
+      return ret
     return self.minute 
 
   # устанавливаем видимость
   def get_VV(self):
+    if self.only_float:
+      ret = self.safe_cast(self.VV,float,0.0)
+      return ret
     return self.VV 
 
   # устанавливаем давление
   def get_P(self):
+    if self.only_float:
+      ret = self.safe_cast(self.P,float,0.0)
+      return ret
     return self.P 
 
   # устанавливаем ВНГО
   def get_H(self):
+    if self.only_float:
+      if len(self.H_arr)>0:
+        return self.safe_cast( self.H_arr[0],float,0.0 )
+      else:
+        return 0.0
     return '/'.join(str(x) for x in self.H_arr)
 
   # устанавливаем ВНГО
   def get_N(self):
+    if self.only_float:
+      if len(self.N_arr)>0:
+        return self.safe_cast( self.N_arr[0],float,0.0 )
+      else:
+        return 0.0
     return '/'.join(str(x) for x in self.N_arr)
 
   # возвращаем ВНГО для СМУ (одно число)

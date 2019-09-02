@@ -108,7 +108,6 @@ class IListWeather(IList):
       # то обрываем связь
       if ( item.get_WW() != yavl ):
         if yavl is not False and yavl != '' and item.get_VV()<=4:
-          print item.get_VV()
           res[yavl.decode('utf-8')].append( int(item.get_hour())-hour_start )
         yavl       = item.get_WW()
         hour_start = int(item.get_hour())

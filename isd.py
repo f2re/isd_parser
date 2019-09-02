@@ -310,8 +310,8 @@ class ISD(object):
   def f_DATE(self,val):
     result = datetime.strptime(val, '%Y-%m-%dT%H:%M:%S')
     self.weather_.set_date(result)
-    self.weather_.set_hour(result.hour)
-    self.weather_.set_minute(result.minute)
+    self.weather_.set_hour(self.safe_cast(result.hour,int))
+    self.weather_.set_minute(self.safe_cast(result.minute,int))
     return result
 
   # 
