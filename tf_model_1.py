@@ -98,7 +98,7 @@ def get_weather_on_ISDstation( date, st, offset, step, db, collection, ip, port 
 
   print("DB records count: ",count)
   # возвращаем станции
-  return weather_list
+  return weather_list, from_date, to_date
 
 # 
 # Запрос для базы которая наша
@@ -129,7 +129,7 @@ def get_weather_on_REPORTstation( date, st, offset, step, db, collection, ip, po
 
   print("DB records count: ",count)
   # возвращаем станции
-  return weather_list
+  return weather_list, from_date, to_date
 
 # 
 # получаем погоду на станции 
@@ -185,6 +185,37 @@ def prepare_XY_sample(dataX,dataY, length):
   retX = np.array(samples).reshape(len(samples),length,len(dataX[0]))
   return retX,np.array(Y)
 
+
+# 
+# Получаем обучаемый набор из загруженных данных в weather_list
+# 
+def get_batch_from_weatherlist(weather_list):
+  X_batch = []
+  Y_batch = []
+  i       = 0
+  for item in weather_list.get_all():
+    item.onlyFloatOn()
+    X_batch.append( [ item.get_T(), 
+                      item.get_P(), 
+                      item.get_N(), 
+                      item.get_dd(), 
+                      item.get_VV(), 
+                      item.get_ff(), 
+                      item.get_H(),                       
+                      item.get_RR(),                       
+                      item.get_hour(), 
+                      item.get_date().day,
+                      item.get_date().month ] )
+    if i>0 :
+      Y_batch.append( item.get_T() )
+    i+=1
+
+  # 
+  # Уменьшаем массив исходных данных на 1, так как Y на 1 опережает X
+  # 
+  X_batch=np.array(X_batch[:-1])
+  return X_batch, Y_batch
+
 # 
 # 
 # =======================================================
@@ -213,7 +244,7 @@ from sklearn.preprocessing import MinMaxScaler
 import keras
 import keras.backend as K
 
-num_epochs                = 6
+num_epochs                = 20
 total_series_length       = 50000
 truncated_backprop_length = 15
 state_size                = 4
@@ -257,34 +288,13 @@ def train_model( stantion="219310", plot=False, save=True, load=False ):
   # 219310 - Юбилейная (21931)
   # 340560 - Ртищево (34056)
   # 
-  weather_list = get_weather_on_ISDstation(date=dt_cur,st=stantion,offset=0,step=n_timesteps,db=mongo_db, collection=mongo_collection, ip=mongo_host, port=mongo_port)
+  weather_list, from_date, to_date = get_weather_on_ISDstation(date=dt_cur,st=stantion,offset=0,step=n_timesteps,db=mongo_db, collection=mongo_collection, ip=mongo_host, port=mongo_port)
 
   # 
   # Создаем набор с данными из базы
   # отбираем набор параметров для обучения нейросети
   # 
-  i     = 0
-  for item in weather_list.get_all():
-    item.onlyFloatOn()
-    X_batch.append( [ item.get_T(), 
-                      item.get_P(), 
-                      item.get_N(), 
-                      item.get_dd(), 
-                      item.get_VV(), 
-                      item.get_ff(), 
-                      item.get_H(),                       
-                      item.get_RR(),                       
-                      item.get_hour(), 
-                      item.get_date().day,
-                      item.get_date().month ] )
-    if i>0 :
-      Y_batch.append( item.get_T() )
-    i+=1
-
-  # 
-  # Уменьшаем массив исходных данных на 1, так как Y на 1 опережает X
-  # 
-  X_batch=np.array(X_batch[:-1])
+  X_batch, Y_batch = get_batch_from_weatherlist( weather_list )
 
   # 
   # Разбиваем выборку на тестовую и обучающую выборку
@@ -323,7 +333,16 @@ def train_model( stantion="219310", plot=False, save=True, load=False ):
   # 
   # Загружаем модель
   # 
+  
+  # а вот если мы сохраняем - то загружать уже не надо
+  if save:
+    load = False
+
+  # загружаем модель
   if load:
+    # аналогично, если загружаем - то сохранять не надо
+    save = False
+
     # load json and create model
     json_file = open("model_"+str(stantion)+".json", 'r')
     loaded_model_json = json_file.read()
@@ -384,10 +403,9 @@ def train_model( stantion="219310", plot=False, save=True, load=False ):
                                     x.reshape(1,n_backtime,X_train.shape[2]) 
                                     ) 
                                   ),  X_test ))).flatten()
-    # print(predicted)
     ax2.plot( predicted, label="Predicted T" )
     ax2.plot( scalerY.inverse_transform(y_test), label="Real value of T" )
-    ax2.set(title='Temp values', ylabel='T')
+    ax2.set(title='Temp values '+(from_date.strftime("%Y.%m.%d"))+"-"+(to_date.strftime("%Y.%m.%d")), ylabel='T')
     ax2.legend()
 
     ax3.hist(  predicted-scalerY.inverse_transform(y_test).flatten(), label="loss" )
@@ -411,12 +429,12 @@ def train_model( stantion="219310", plot=False, save=True, load=False ):
 # 
 # Обучаем модель на данных
 # 
-model, scalerX, scalerY = train_model(  stantion="340560",  save=False, load=True,  plot=True )
+model, scalerX, scalerY = train_model(  stantion="340560",  save=True, load=True,  plot=True )
 
 # 
 # Загружаем свежие данные из базы
 # 
-weather_list = get_weather_on_ISDstation( date=dt(2019,5,10), st="340560", offset=0, step=5,
+weather_list, from_date, to_date = get_weather_on_ISDstation( date=dt(2019,5,10), st="340560", offset=0, step=5,
                                           db=mongo_db, collection=mongo_collection, ip=mongo_host, port=mongo_port )
                                        # db='meteodb', collection='meteoreport', 
                                        # ip='10.10.11.120', port=mongo_port )
@@ -425,31 +443,11 @@ weather_list = get_weather_on_ISDstation( date=dt(2019,5,10), st="340560", offse
 # Создаем набор с данными из базы
 # отбираем набор параметров для обучения нейросети
 # 
-i     = 0
-X_batch=[]
-Y_batch=[]
-for item in weather_list.get_all():
-  item.onlyFloatOn()
-  X_batch.append( [ item.get_T(), 
-                    item.get_P(), 
-                    item.get_N(), 
-                    item.get_dd(), 
-                    item.get_VV(), 
-                    item.get_ff(), 
-                    item.get_H(),                       
-                    item.get_RR(),                       
-                    item.get_hour(), 
-                    item.get_date().day,
-                    item.get_date().month ] )
-  if i>0 :
-    Y_batch.append( item.get_T() )
-  i+=1
+X_batch, Y_batch = get_batch_from_weatherlist( weather_list )
 
 # 
-# Уменьшаем массив исходных данных на 1, так как Y на 1 опережает X
+# Масштабируем данные
 # 
-X_batch=np.array(X_batch[:-1])
-
 X_batch = scalerX.transform(X_batch)
 Y_batch = scalerY.transform(np.array(Y_batch).reshape(-1,1))
 
@@ -465,7 +463,8 @@ fig, (ax1, ax2) = plt.subplots(2)
 # print(predicted)
 ax1.plot( predicted, label="Predicted T" )
 ax1.plot( scalerY.inverse_transform(y_train), label="Real value of T" )
-ax1.set(title='Значения температуры по данным, которых не было в обучающей выборке', ylabel='T')
+ax1.set(title  = 'Значения температуры по данным, которых не было в обучающей выборке'+(from_date.strftime("%Y.%m.%d"))+"-"+(to_date.strftime("%Y.%m.%d")),
+        ylabel = 'T')
 ax1.legend()
 
 ax2.hist(  predicted-scalerY.inverse_transform(y_train).flatten(), label="loss" )
