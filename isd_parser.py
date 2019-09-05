@@ -34,6 +34,8 @@ mongo_collection = 'meteoisd'
 mongo_host       = 'localhost'
 mongo_port       = 27017
 
+all_files      = 0.0
+files_prepared = 0.0
 
 # 
 # Парсим файл и сохраняем его в базу
@@ -69,6 +71,9 @@ def parse_file(csv_path):
     if parser.get_weather().get_country()!="US":
       mc.write_mongo( db=mongo_db, colletion=mongo_collection, ip=mongo_host, port=mongo_port, data=data_to_write )
 
+    files_prepared+=1
+    if files_prepared>0:
+      print("Operation worked "+str(all_files)+"/"+str(files_prepared)+" "+str(100*files_prepared/all_files)+"%" )
   return "ok"
 
 # 
@@ -78,23 +83,23 @@ pool = Pool(processes=12)
 logger = multiprocessing.log_to_stderr()
 logger.setLevel(multiprocessing.SUBDEBUG)
 
-paths = ["/home/ivan/WEATHERSRC/2018",
-         "/home/ivan/WEATHERSRC/2019"]
+paths = ["/home/ivan/WEATHERSRC/2016"]
+file_list = []
 for path in paths:
   # path = "/home/ivan/WEATHERSRC/2018"
-  file_list = []
   # r=root, d=directories, f = files
   for r, d, f in os.walk(path):
     for file in f:
       if '.csv' in file:
         file_list.append(os.path.join(r, file))
 
-print file_list
+# print file_list
 # 
 # запуливаем все в треды
 # 
-results = []
-results = pool.map(parse_file,file_list) 
+results   = []
+all_files = len(file_list)
+results   = pool.map(parse_file,file_list) 
 pool.close()
 pool.join()
-print results
+print(results)

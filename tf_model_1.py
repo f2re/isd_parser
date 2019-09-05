@@ -11,10 +11,6 @@ import psycopg2 as pg2
 
 import os.path
 
-import json
-
-import pprint
-
 from collections import defaultdict
 from collections import Counter
 
@@ -261,7 +257,10 @@ n_timesteps               = 700
 # количество измерений назад
 # еще это может быть length
 n_backtime                = 3
+# какой процент выкидываем из выборки, чтобы проверить как оно лучше работает
+n_dropout                 = 0.2
 
+plt.style.use('seaborn-pastel')
 
 # 
 # Обучаем и тренируем модель на данных и з БД
@@ -359,6 +358,7 @@ def train_model( stantion="219310", plot=False, save=True, load=False ):
     model = keras.Sequential([
         keras.layers.LSTM(n_inputs,input_shape=(1,n_backtime,X_train.shape[2]), 
                           return_sequences=True,
+                          stateful=False,
                           batch_input_shape=(1,n_backtime,X_train.shape[2]) ),
         # keras.layers.LSTM(n_inputs, return_sequences=True, stateful=True),
         # keras.layers.LSTM(n_inputs*2, return_sequences=True, stateful=True),
@@ -392,6 +392,7 @@ def train_model( stantion="219310", plot=False, save=True, load=False ):
   if plot:
     # plot history
     fig, (ax1, ax2, ax3) = plt.subplots(3)
+    plt.style.use('seaborn-pastel')
     if history is not False:
       ax1.plot(history.history['loss'], label='train')
       ax1.plot(history.history['val_loss'], label='test')
@@ -434,7 +435,7 @@ model, scalerX, scalerY = train_model(  stantion="340560",  save=True, load=True
 # 
 # Загружаем свежие данные из базы
 # 
-weather_list, from_date, to_date = get_weather_on_ISDstation( date=dt(2019,5,10), st="340560", offset=0, step=5,
+weather_list, from_date, to_date = get_weather_on_ISDstation( date=dt(2019,1,1), st="340560", offset=0, step=150,
                                           db=mongo_db, collection=mongo_collection, ip=mongo_host, port=mongo_port )
                                        # db='meteodb', collection='meteoreport', 
                                        # ip='10.10.11.120', port=mongo_port )
@@ -457,14 +458,15 @@ X_train , y_train = prepare_XY_sample(X_batch,Y_batch,n_backtime)
 predicted = np.array(list(map( lambda x: scalerY.inverse_transform( 
                               model.predict( 
                                 x.reshape(1,n_backtime,X_train.shape[2]) 
-                                ) 
+                                )
                               ),  X_train ))).flatten()
 fig, (ax1, ax2) = plt.subplots(2)
+plt.style.use('seaborn-pastel')
 # print(predicted)
 ax1.plot( predicted, label="Predicted T" )
 ax1.plot( scalerY.inverse_transform(y_train), label="Real value of T" )
-ax1.set(title  = 'Значения температуры по данным, которых не было в обучающей выборке'+(from_date.strftime("%Y.%m.%d"))+"-"+(to_date.strftime("%Y.%m.%d")),
-        ylabel = 'T')
+ax1.set( title  = 'Значения температуры по данным, которых не было в обучающей выборке'+(from_date.strftime("%Y.%m.%d"))+"-"+(to_date.strftime("%Y.%m.%d")),
+         ylabel = 'T' )
 ax1.legend()
 
 ax2.hist(  predicted-scalerY.inverse_transform(y_train).flatten(), label="loss" )

@@ -2,3 +2,4 @@ srcdata/
 *.pyc
 *.json
 *.h5
+default_*
