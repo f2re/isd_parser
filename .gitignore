@@ -1,5 +1,7 @@
 srcdata/
 *.pyc
+yavl_*
+lastfile.txt
 *.json
 *.h5
 default_*
