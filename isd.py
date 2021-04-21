@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 
 # импортируем класс станции
-from stantionclass import Stantion
+from trainer.stantionclass import Stantion
 # списки погоды
 from ilistweather import IListWeather
 
@@ -72,6 +72,11 @@ class ISD(object):
       'MA1':         self.f_MA1,
       'MV1':         self.f_MV1,
       'MW1':         self.f_MW1,
+      'MW2':         self.f_MW1,
+      'MW3':         self.f_MW1,
+      'MW4':         self.f_MW1,
+      'MW5':         self.f_MW1,
+      'MW6':         self.f_MW1,
       'OC1':         self.f_OC1,
     }
 
@@ -581,7 +586,8 @@ class ISD(object):
       # PRESENT-WEATHER-OBSERVATION manual occurrence identifier
       w = None
       w = self.weather(result[0])
-      if w is not None:
+      if w is not None and w !="":
+        # print(w)
         self.weather_.set_WW( w )
     return result
 

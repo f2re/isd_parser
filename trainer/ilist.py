@@ -30,6 +30,14 @@ class IList:
     self._list = sorted(self._list)
     return self
 
+  
+  # 
+  # заменяем элемент массива на нужный нам
+  # 
+  def replace(self,item,index):
+    if len(self._list)>index:
+      self._list[index] = item
+    return self
 
   # 
   # Возвращаем количество записей
@@ -41,6 +49,11 @@ class IList:
   # получаем сортировку по дате и времени
   def get_sort_by_time(self):
     self._list = sorted( self._list, key=lambda item: item.date, reverse=True)
+    return self
+
+  # получаем сортировку по дате и времени
+  def get_sort_by_time_noreverse(self):
+    self._list = sorted( self._list, key=lambda item: item.date, reverse=False)
     return self
 
   # 
@@ -123,5 +136,5 @@ class IList:
   def __str__(self):
     restr = ''
     for item in self._list:
-      restr+=item.__str__().encode('utf-8')+'\n'
+      restr+=item.__str__()+'\n'
     return restr
